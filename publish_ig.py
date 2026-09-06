@@ -16,8 +16,12 @@ Opcionales:
 Estado en state.json: {"posted": ["23_tesoro-t40", ...]}
 Publica UN barco por ejecución, en orden de carpeta, saltando los ya posteados.
 """
-import os, re, json, sys, glob, time
+import os, re, json, sys, glob, time, datetime
 import requests
+try:
+    from zoneinfo import ZoneInfo
+except Exception:
+    ZoneInfo = None
 
 GRAPH = "https://graph.facebook.com/v21.0"
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -93,7 +97,25 @@ def create_item(url):
     return j["id"]
 
 
+def time_gate():
+    """En ejecuciones programadas, solo publica si en Madrid son las 8:00 o 20:00.
+    Así se respeta 8:00/20:00 hora española todo el año (verano e invierno),
+    aunque el cron de GitHub sea en UTC. Las ejecuciones manuales pasan siempre."""
+    if os.environ.get("EVENT_NAME", "") != "schedule":
+        return True
+    hours = [int(x) for x in os.environ.get("PUBLISH_HOURS", "8,20").split(",")]
+    if ZoneInfo is None:
+        return True
+    now = datetime.datetime.now(ZoneInfo("Europe/Madrid"))
+    if now.hour in hours:
+        return True
+    print(f"Hora Madrid {now:%H:%M}: fuera de franja {hours}. Salgo sin publicar.")
+    return False
+
+
 def main():
+    if not time_gate():
+        return
     for v in ("IG_USER_ID", "IG_TOKEN", "IMG_BASE"):
         if not globals()[v]:
             raise SystemExit(f"Falta variable de entorno {v}")

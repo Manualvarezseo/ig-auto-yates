@@ -2,8 +2,11 @@ name: Publicar carrusel en Instagram
 
 on:
   schedule:
-    # Cada 2 días a las 18:00 UTC (20:00 España en verano). Ajusta a tu gusto.
-    - cron: "0 18 */2 * *"
+    # Objetivo: 08:00 y 20:00 hora ESPAÑOLA (cada 12 h).
+    # GitHub usa UTC y no ajusta verano/invierno, así que disparamos en las 4
+    # horas UTC posibles (06,07,18,19) y el script solo publica si en Madrid
+    # son las 8 o las 20. Así es correcto todo el año.
+    - cron: "0 6,7,18,19 * * *"
   workflow_dispatch:            # permite lanzarlo a mano desde la pestaña Actions
     inputs:
       dry_run:
@@ -35,6 +38,8 @@ jobs:
           IMG_BASE: "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/carruseles"
           DRY_RUN: ${{ github.event.inputs.dry_run }}
           ONLY: ${{ github.event.inputs.only }}
+          EVENT_NAME: ${{ github.event_name }}
+          PUBLISH_HOURS: "8,20"
         run: python publish_ig.py
 
       - name: Guardar estado (commit state.json)
