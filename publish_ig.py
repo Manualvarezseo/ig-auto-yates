@@ -113,12 +113,36 @@ def time_gate():
     return False
 
 
+def resolve_ig_user_id():
+    """Descubre el IG_USER_ID a partir del token (no hace falta darlo a mano):
+    token -> /me/accounts (Página) -> instagram_business_account."""
+    r = requests.get(f"{GRAPH}/me/accounts",
+                     params={"access_token": IG_TOKEN, "fields": "id,name"}, timeout=30)
+    r.raise_for_status()
+    pages = r.json().get("data", [])
+    if not pages:
+        raise SystemExit("El token no da acceso a ninguna Página de Facebook.")
+    page_id = pages[0]["id"]
+    r2 = requests.get(f"{GRAPH}/{page_id}",
+                      params={"access_token": IG_TOKEN,
+                              "fields": "instagram_business_account"}, timeout=30)
+    r2.raise_for_status()
+    iba = r2.json().get("instagram_business_account")
+    if not iba:
+        raise SystemExit("La Página no tiene una cuenta de Instagram profesional vinculada.")
+    return iba["id"]
+
+
 def main():
+    global IG_USER_ID
     if not time_gate():
         return
-    for v in ("IG_USER_ID", "IG_TOKEN", "IMG_BASE"):
+    for v in ("IG_TOKEN", "IMG_BASE"):
         if not globals()[v]:
             raise SystemExit(f"Falta variable de entorno {v}")
+    if not IG_USER_ID:
+        IG_USER_ID = resolve_ig_user_id()
+        print(f"IG_USER_ID detectado automáticamente: {IG_USER_ID}")
 
     state = load_state()
     fold = pick_next(state)
