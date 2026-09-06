@@ -40,6 +40,9 @@ jobs:
           ONLY: ${{ github.event.inputs.only }}
           EVENT_NAME: ${{ github.event_name }}
           PUBLISH_HOURS: "8,20"
+          TG_TOKEN: ${{ secrets.TG_TOKEN }}
+          TG_CHAT: ${{ secrets.TG_CHAT }}
+          TG_THREADS: ${{ vars.TG_THREADS }}
         run: python publish_ig.py
 
       - name: Guardar estado (commit state.json)

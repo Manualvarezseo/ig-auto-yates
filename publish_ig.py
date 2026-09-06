@@ -35,6 +35,12 @@ IMG_BASE = os.environ.get("IMG_BASE", "").strip().rstrip("/")
 DRY = os.environ.get("DRY_RUN", "") == "1"
 ONLY = os.environ.get("ONLY", "").strip()
 
+# Aviso a Telegram (grupo Barcos). Opcional: si no hay TG_TOKEN/TG_CHAT no avisa.
+TG_TOKEN = os.environ.get("TG_TOKEN", "").strip()
+TG_CHAT = os.environ.get("TG_CHAT", "").strip()
+# Opcional: ids de temas/canales del grupo (coma-separado). Si se ponen, avisa en cada uno.
+TG_THREADS = [t.strip() for t in os.environ.get("TG_THREADS", "").split(",") if t.strip()]
+
 
 def load_state():
     if os.path.exists(STATE):
@@ -82,6 +88,38 @@ def carousel_images(fold):
 def read_caption(fold):
     p = os.path.join(CAR, fold, "caption.txt")
     return open(p, encoding="utf-8").read().strip() if os.path.exists(p) else ""
+
+
+def boat_name(fold, caption):
+    """Nombre legible del barco: primera línea del caption hasta el guion,
+    o si no, el slug de la carpeta en bonito."""
+    first = caption.splitlines()[0] if caption else ""
+    for sep in (" — ", " – ", " - ", " —"):
+        if sep in first:
+            first = first.split(sep, 1)[0]
+            break
+    first = first.strip().rstrip("🛥️").strip()
+    if first:
+        return first
+    slug = re.sub(r"^\d+_", "", fold).replace("-", " ")
+    return slug.title()
+
+
+def telegram_notify(name):
+    """Avisa al grupo Barcos de que se ha publicado. No rompe si falla."""
+    if not (TG_TOKEN and TG_CHAT):
+        return
+    text = f'✅ La publicación "{name}" se ha publicado en Instagram.'
+    targets = TG_THREADS or [None]
+    for thread in targets:
+        body = {"chat_id": TG_CHAT, "text": text, "disable_web_page_preview": True}
+        if thread:
+            body["message_thread_id"] = thread
+        try:
+            requests.post(f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
+                          data=body, timeout=20)
+        except Exception as e:
+            print(f"Aviso Telegram falló (no crítico): {e}")
 
 
 def api_post(path, params):
@@ -183,6 +221,8 @@ def main():
     pub = api_post(f"{IG_USER_ID}/media_publish", {
         "creation_id": parent, "access_token": IG_TOKEN})
     print(f"PUBLICADO ✅  media id = {pub.get('id')}")
+
+    telegram_notify(boat_name(fold, caption))
 
     state["posted"].append(fold)
     save_state(state)
