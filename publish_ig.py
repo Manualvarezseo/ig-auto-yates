@@ -53,8 +53,12 @@ def save_state(s):
 
 
 def boat_folders():
-    return sorted(d for d in os.listdir(CAR)
-                  if re.match(r"^\d+_", d) and os.path.isdir(os.path.join(CAR, d)))
+    # Las carpetas están numeradas de más caro (01) a más barato (40).
+    # Publicamos de BARATO a CARO (reverse) para que los caros/premium queden
+    # como los posts más recientes (arriba del feed).
+    return sorted((d for d in os.listdir(CAR)
+                   if re.match(r"^\d+_", d) and os.path.isdir(os.path.join(CAR, d))),
+                  reverse=True)
 
 
 def pick_next(state):
