@@ -1,0 +1,47 @@
+name: Publicar carrusel en Instagram
+
+on:
+  schedule:
+    # Cada 2 días a las 18:00 UTC (20:00 España en verano). Ajusta a tu gusto.
+    - cron: "0 18 */2 * *"
+  workflow_dispatch:            # permite lanzarlo a mano desde la pestaña Actions
+    inputs:
+      dry_run:
+        description: "Prueba sin publicar (1 = sí)"
+        default: "0"
+      only:
+        description: "Forzar un barco (nombre de carpeta, opcional)"
+        default: ""
+
+permissions:
+  contents: write               # para poder commitear state.json actualizado
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      - name: Publicar siguiente carrusel
+        env:
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          IMG_BASE: "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/carruseles"
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          ONLY: ${{ github.event.inputs.only }}
+        run: python publish_ig.py
+
+      - name: Guardar estado (commit state.json)
+        if: ${{ github.event.inputs.dry_run != '1' }}
+        run: |
+          git config user.name "ig-bot"
+          git config user.email "ig-bot@users.noreplace.github.com"
+          git add state.json
+          git commit -m "estado: publicado siguiente carrusel" || echo "sin cambios"
+          git push
