@@ -139,20 +139,21 @@ def create_item(url):
     return j["id"]
 
 
-def time_gate():
-    """En ejecuciones programadas, solo publica si en Madrid son las 8:00 o 20:00.
-    Así se respeta 8:00/20:00 hora española todo el año (verano e invierno),
-    aunque el cron de GitHub sea en UTC. Las ejecuciones manuales pasan siempre."""
-    if os.environ.get("EVENT_NAME", "") != "schedule":
-        return True
-    hours = [int(x) for x in os.environ.get("PUBLISH_HOURS", "8,20").split(",")]
+def current_slot():
+    """Franja de publicación actual en hora de Madrid, o None fuera de franja.
+    Ventanas AMPLIAS para tolerar los retrasos del cron de GitHub (a veces >1-2 h):
+      - Mañana (objetivo 08:00): 08:00–15:59  -> 'YYYY-MM-DD-AM'
+      - Tarde  (objetivo 20:00): 20:00–23:59  -> 'YYYY-MM-DD-PM'
+    El control de 'done_slots' evita publicar 2 veces en la misma franja."""
     if ZoneInfo is None:
-        return True
+        return None
     now = datetime.datetime.now(ZoneInfo("Europe/Madrid"))
-    if now.hour in hours:
-        return True
-    print(f"Hora Madrid {now:%H:%M}: fuera de franja {hours}. Salgo sin publicar.")
-    return False
+    d = now.strftime("%Y-%m-%d")
+    if 8 <= now.hour < 16:
+        return d + "-AM"
+    if now.hour >= 20:
+        return d + "-PM"
+    return None
 
 
 def resolve_ig_user_id():
@@ -177,16 +178,27 @@ def resolve_ig_user_id():
 
 def main():
     global IG_USER_ID
-    if not time_gate():
-        return
     for v in ("IG_TOKEN", "IMG_BASE"):
         if not globals()[v]:
             raise SystemExit(f"Falta variable de entorno {v}")
+
+    state = load_state()
+
+    # Control de franja SOLO en ejecuciones programadas (las manuales publican ya).
+    slot = None
+    if os.environ.get("EVENT_NAME", "") == "schedule":
+        slot = current_slot()
+        if slot is None:
+            print("Fuera de franja (Madrid). Salgo sin publicar.")
+            return
+        if slot in state.get("done_slots", []):
+            print(f"La franja {slot} ya se publicó. Salgo.")
+            return
+
     if not IG_USER_ID:
         IG_USER_ID = resolve_ig_user_id()
         print(f"IG_USER_ID detectado automáticamente: {IG_USER_ID}")
 
-    state = load_state()
     fold = pick_next(state)
     if not fold:
         print("No quedan barcos por publicar. Cola completada.")
@@ -229,6 +241,9 @@ def main():
     telegram_notify(boat_name(fold, caption))
 
     state["posted"].append(fold)
+    if slot:
+        state.setdefault("done_slots", []).append(slot)
+        state["done_slots"] = state["done_slots"][-8:]  # solo las últimas franjas
     save_state(state)
     print(f"Estado actualizado: {len(state['posted'])}/{len(boat_folders())} publicados.")
 

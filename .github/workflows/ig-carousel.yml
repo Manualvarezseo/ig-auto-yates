@@ -2,11 +2,11 @@ name: Publicar carrusel en Instagram
 
 on:
   schedule:
-    # Objetivo: 08:00 y 20:00 hora ESPAÑOLA (cada 12 h).
-    # GitHub usa UTC y no ajusta verano/invierno, así que disparamos en las 4
-    # horas UTC posibles (06,07,18,19) y el script solo publica si en Madrid
-    # son las 8 o las 20. Así es correcto todo el año.
-    - cron: "0 6,7,18,19 * * *"
+    # Objetivo: publicar 1 por la mañana (~08:00) y 1 por la tarde (~20:00) hora ES.
+    # El cron de GitHub va en UTC y suele RETRASARSE (a veces >1-2 h), así que
+    # disparamos varias veces en cada franja; el script publica como mucho 1 vez
+    # por franja (control 'done_slots'). Ventanas: mañana 08-16 y tarde 20-24 Madrid.
+    - cron: "0 6,8,10,18,19,20 * * *"
   workflow_dispatch:            # permite lanzarlo a mano desde la pestaña Actions
     inputs:
       dry_run:
@@ -18,6 +18,10 @@ on:
 
 permissions:
   contents: write               # para poder commitear state.json actualizado
+
+concurrency:                    # nunca dos publicaciones a la vez (evita duplicados)
+  group: ig-publish
+  cancel-in-progress: false
 
 jobs:
   publish:
