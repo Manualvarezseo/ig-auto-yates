@@ -6,7 +6,7 @@ on:
     # El cron de GitHub va en UTC y suele RETRASARSE (a veces >1-2 h), así que
     # disparamos varias veces en cada franja; el script publica como mucho 1 vez
     # por franja (control 'done_slots'). Ventanas: mañana 08-16 y tarde 20-24 Madrid.
-    - cron: "0 6,8,10,18,19,20 * * *"
+    - cron: "0 * * * *"
   workflow_dispatch:            # permite lanzarlo a mano desde la pestaña Actions
     inputs:
       dry_run:
