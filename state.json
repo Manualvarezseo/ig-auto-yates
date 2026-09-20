@@ -24,16 +24,17 @@
     "19_de-antonio-42-tot-suma",
     "18_de-antonio-42-bambino",
     "17_sessa-c44",
-    "16_sunseeker-portofino-53-ii"
+    "16_sunseeker-portofino-53-ii",
+    "15_sunseeker-portofino-53"
   ],
   "done_slots": [
-    "2026-09-16-PM",
     "2026-09-17-AM",
     "2026-09-17-PM",
     "2026-09-18-AM",
     "2026-09-18-PM",
     "2026-09-19-AM",
     "2026-09-19-PM",
-    "2026-09-20-AM"
+    "2026-09-20-AM",
+    "2026-09-20-PM"
   ]
 }
